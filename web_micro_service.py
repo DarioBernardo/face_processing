@@ -1,28 +1,15 @@
-# This is a demo of running face recognition on a Raspberry Pi.
-# This program will print out the names of anyone it recognizes to the console.
-
-# To run this, you need a Raspberry Pi 2 (or greater) with face_recognition and
-# the picamera[array] module installed.
-# You can follow this installation instructions to get your RPi set up:
-# https://gist.github.com/ageitgey/1ac8dbe8572f3f533df6269dab35df65
-
-import face_recognition
-import picamera
-import glob
 import os
 import numpy as np
+import cv2
+import face_recognition
+import glob
+import json
+from flask import Flask, request, Response
+from flask import abort
 
-# Get a reference to the Raspberry Pi camera.
-# If this fails, make sure you have a camera connected to the RPi and that you
-# enabled your camera in raspi-config and rebooted first.
-camera = picamera.PiCamera()
-camera.resolution = (320, 240)
-camera.hflip = True  # Flipping the camera because in my raspberryPi it is upside down
-camera.vflip = True
-output = np.empty((240, 320, 3), dtype=np.uint8)
 
-# Load a sample picture and learn how to recognize it.
-print("Loading known face image(s)")
+app = Flask(__name__)
+
 known_face_file_list = glob.glob("known_faces/*.jpg")
 
 known_face_encodings = []
@@ -43,10 +30,18 @@ for known_face_file_path in known_face_file_list:
 face_locations = []
 face_encodings = []
 
-while True:
-    print("Capturing image.")
-    # Grab a single frame of video from the RPi camera as a numpy array
-    camera.capture(output, format="rgb")
+
+@app.route('/', methods=['POST', 'GET'])
+def find_person_in_frame():
+
+    #### FIRST CHECK THE INPUTS ####
+    content_type = request.headers['content-type']
+    if content_type != 'image/jpeg':
+        abort(406)
+
+    nparr = np.fromstring(request.data, np.uint8)
+    # decode image
+    output = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
     # Find all the faces and face encodings in the current frame of video
     face_locations = face_recognition.face_locations(output)
@@ -58,7 +53,7 @@ while True:
     for face_encoding in face_encodings:
         # See if the face is a match for the known face(s)
         matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
-        name = "Unknown"
+        name = "Stranger"
 
         # If a match was found in known_face_encodings, just use the first one.
         if True in matches:
@@ -67,8 +62,16 @@ while True:
 
         face_names.append(name)
 
-    if len(face_names) == 1:
-        name = face_names[0]
-        print("I see someone named {}!".format(name))
-    elif len(face_names) > 1:
-        print("Found {} people, named {}!".format(len(face_names), face_names))
+    # if len(face_names) == 1:
+    #     name = face_names[0]
+    #     print("I see someone named {}!".format(name))
+    # elif len(face_names) > 1:
+    #     print("Found {} people, named {}!".format(len(face_names), face_names))
+
+    response = {'people': face_names, 'message': 'image received. size={}x{}'.format(output.shape[1], output.shape[0])}
+
+    return Response(response=json.dumps(response), status=200, mimetype="application/json")
+
+
+if __name__ == "__main__":
+    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
