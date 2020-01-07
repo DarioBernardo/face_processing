@@ -24,6 +24,7 @@ RUN apt-get install -y --fix-missing \
     python3-numpy \
     software-properties-common \
     zip \
+    cmake \
     && apt-get clean && rm -rf /tmp/* /var/tmp/*
 
 RUN cd ~ && \
