@@ -12,8 +12,8 @@ import cv2
 # OpenCV is *not* required to use the face_recognition library. It's only required if you want to run this
 # specific demo. If you have trouble installing it, try any of the other demos that don't require it instead.
 
-# Get a reference to webcam #0 (the default one)
-video_capture = cv2.VideoCapture(0)
+# Get a reference to webcam #0 (the default one) use 1 for MacOSX
+video_capture = cv2.VideoCapture(1)
 
 known_face_file_list = glob.glob("known_faces/*.jpg")
 
@@ -41,6 +41,9 @@ process_this_frame = True
 while True:
     # Grab a single frame of video
     ret, frame = video_capture.read()
+
+    if frame is None:
+        raise Exception("Couldn't read frames from camera.")
 
     # Resize frame of video to 1/4 size for faster face recognition processing
     small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
